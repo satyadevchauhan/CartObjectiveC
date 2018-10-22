@@ -17,7 +17,7 @@ SCError * checkForOKResponse(NSURLResponse *response) {
         return [SCError errorWithCode:kSCErrorServerError description:[NSHTTPURLResponse localizedStringForStatusCode:httpResponse.statusCode]];
     }
     
-    if (httpResponse.statusCode != 200 || httpResponse.statusCode != 204){
+    if (httpResponse.statusCode != 200 && httpResponse.statusCode != 204){
         return [SCError errorWithCode:kSCErrorNetworkError description:[NSHTTPURLResponse localizedStringForStatusCode:httpResponse.statusCode]];
     }
     

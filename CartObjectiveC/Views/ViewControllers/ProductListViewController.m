@@ -34,6 +34,7 @@ static NSString * const ProductTableViewHeaderFooterViewIdentifier = @"ProductTa
 @property (nonatomic, assign) NSInteger openSectionIndex;
 @property (nonatomic, strong) NSArray<Category *> *categories;
 @property (nonatomic, assign) Boolean isCollectionView;
+@property (nonatomic, strong) UIRefreshControl *refreshControl;
 
 @end
 
@@ -52,6 +53,27 @@ static NSString * const ProductTableViewHeaderFooterViewIdentifier = @"ProductTa
     self.openSectionIndex = NSNotFound;
     
     /* Load the data from Server */
+    [self loadCategory];
+    
+    self.refreshControl = [[UIRefreshControl alloc] init];
+    [self.refreshControl addTarget:self action:@selector(pullToRefresh:) forControlEvents:UIControlEventValueChanged];
+    
+    self.tableView.delegate = self;
+    self.tableView.dataSource = self;
+    self.tableView.refreshControl = self.refreshControl;
+    self.tableView.tableFooterView = [[UIView alloc] initWithFrame:CGRectZero];
+    [self.tableView registerNib:[UINib nibWithNibName:ProductTableViewCellIdentifier bundle:nil] forCellReuseIdentifier:ProductTableViewCellIdentifier];
+    [self.tableView registerNib:[UINib nibWithNibName:ItemTableViewCellIdentifier bundle:nil] forCellReuseIdentifier:ItemTableViewCellIdentifier];
+    [self.tableView registerNib:[UINib nibWithNibName:ProductCollectionViewHeaderFooterViewIdentifier bundle:nil] forHeaderFooterViewReuseIdentifier:ProductCollectionViewHeaderFooterViewIdentifier];
+    [self.tableView registerNib:[UINib nibWithNibName:ProductTableViewHeaderFooterViewIdentifier bundle:nil] forHeaderFooterViewReuseIdentifier:ProductTableViewHeaderFooterViewIdentifier];
+}
+
+// Get the Category
+- (void)loadCategory {
+    
+    self.refreshControl.selected = YES;
+    self.openSectionIndex = NSNotFound;
+    
     NSURL *categoryURL = [NSURL  URLWithString:SERVER_URL];
     CategoryService *categoryService = [[CategoryService alloc] init];
     [categoryService loadCategory:categoryURL success:^(NSArray * _Nonnull items) {
@@ -61,18 +83,16 @@ static NSString * const ProductTableViewHeaderFooterViewIdentifier = @"ProductTa
         }
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.tableView reloadData];
+            self.refreshControl.selected = NO;
+            [self.refreshControl endRefreshing];
         });
     } failure:^(SCError * _Nonnull error) {
-       NSLog(@"Error code: %ld, Connection Error : %@", error.code, [error description]);
+        NSLog(@"Error code: %ld, Connection Error : %@", error.code, [error description]);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.refreshControl.selected = NO;
+            [self.refreshControl endRefreshing];
+        });
     }];
-    
-    self.tableView.delegate = self;
-    self.tableView.dataSource = self;
-    self.tableView.tableFooterView = [[UIView alloc] initWithFrame:CGRectZero];
-    [self.tableView registerNib:[UINib nibWithNibName:ProductTableViewCellIdentifier bundle:nil] forCellReuseIdentifier:ProductTableViewCellIdentifier];
-    [self.tableView registerNib:[UINib nibWithNibName:ItemTableViewCellIdentifier bundle:nil] forCellReuseIdentifier:ItemTableViewCellIdentifier];
-    [self.tableView registerNib:[UINib nibWithNibName:ProductCollectionViewHeaderFooterViewIdentifier bundle:nil] forHeaderFooterViewReuseIdentifier:ProductCollectionViewHeaderFooterViewIdentifier];
-    [self.tableView registerNib:[UINib nibWithNibName:ProductTableViewHeaderFooterViewIdentifier bundle:nil] forHeaderFooterViewReuseIdentifier:ProductTableViewHeaderFooterViewIdentifier];
 }
 
 // Get the Product for Category
@@ -96,6 +116,12 @@ static NSString * const ProductTableViewHeaderFooterViewIdentifier = @"ProductTa
     } failure:^(SCError * _Nonnull error) {
         NSLog(@"Error code: %ld, Connection Error : %@", error.code, [error description]);
     }];
+}
+
+-(IBAction)pullToRefresh:(id)sender {
+    if (self.refreshControl.selected == NO) {
+        [self loadCategory];
+    }
 }
 
 // Helper to Change the View as List/Grid
